@@ -42,5 +42,20 @@ namespace Geta.ImageOptimization.Configuration
             }
             set { base["bypassPreviouslyOptimized"] = value; }
         }
+
+		[ConfigurationProperty("includeContentAssets")]
+		public bool IncludeContentAssets
+		{
+			get
+			{
+				if (base["includeContentAssets"] == null)
+				{
+					return false;
+				}
+
+				return (bool)base["includeContentAssets"];
+			}
+			set { base["includeContentAssets"] = value; }
+		}
     }
 }

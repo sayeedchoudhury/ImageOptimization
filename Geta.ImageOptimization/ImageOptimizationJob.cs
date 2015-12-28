@@ -48,7 +48,7 @@ namespace Geta.ImageOptimization
             var contentRepository = ServiceLocator.Current.GetInstance<IContentRepository>();
             var blobFactory = ServiceLocator.Current.GetInstance<BlobFactory>();
 
-            IEnumerable<ImageData> allImages = GetImageFiles(contentRepository.Get<ContentFolder>(SiteDefinition.Current.GlobalAssetsRoot));
+			IEnumerable<ImageData> allImages = GetFolders(contentRepository).SelectMany(a => GetImageFiles(a)).Distinct();
 
             if (_stop)
             {
@@ -118,6 +118,18 @@ namespace Geta.ImageOptimization
 
             return string.Format("Job completed after optimizing: {0} images. Before: {1} KB, after: {2} KB.", count, totalBytesBefore / 1024, totalBytesAfter / 1024);
         }
+
+		private static List<ContentFolder> GetFolders(IContentRepository contentRepository)
+		{
+			var folders = new List<ContentFolder>();
+			folders.Add(contentRepository.Get<ContentFolder>(SiteDefinition.Current.GlobalAssetsRoot));
+
+			if (ImageOptimizationSettings.Instance.IncludeContentAssets)
+			{
+				folders.Add(contentRepository.Get<ContentFolder>(SiteDefinition.Current.ContentAssetsRoot));
+			}
+			return folders;
+		}
 
         private IEnumerable<ImageData> FilterPreviouslyOptimizedImages(IEnumerable<ImageData> allImages)
         {
