@@ -11,13 +11,7 @@ namespace Geta.ImageOptimization.Implementations
     [ServiceConfiguration(typeof(IImageLogRepository))]
     public class ImageLogRepository : IImageLogRepository
     {
-        private static DynamicDataStore Store
-        {
-            get
-            {
-                return typeof(ImageLogEntry).GetStore();
-            }
-        }
+        private static DynamicDataStore Store => typeof(ImageLogEntry).GetStore();
 
         public ImageLogEntry GetLogEntry(Identity id)
         {

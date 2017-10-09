@@ -3,6 +3,7 @@ using System.Web;
 using System.Web.Script.Serialization;
 using EPiServer;
 using EPiServer.ServiceLocation;
+using Geta.ImageOptimization.Configuration;
 using Geta.ImageOptimization.Interfaces;
 using Geta.ImageOptimization.Messaging;
 
@@ -16,7 +17,7 @@ namespace Geta.ImageOptimization.Implementations
 
         public SmushItResponse ProcessImage(SmushItRequest smushItRequest)
         {
-            string jsonResponse = string.Empty;
+            string jsonResponse;
 
             string endpoint = this.BuildUrl(smushItRequest.ImageUrl);
 
@@ -39,7 +40,7 @@ namespace Geta.ImageOptimization.Implementations
 
         private string BuildUrl(string imageUrl)
         {
-            string endpoint = "http://www.resmush.it/ws.php";
+            string endpoint = ImageOptimizationSettings.Instance.ImageOptimizationApi ?? "http://api.resmush.it/ws.php";
 
             endpoint = UriSupport.AddQueryString(endpoint, "img", HttpUtility.UrlEncode(imageUrl));
 

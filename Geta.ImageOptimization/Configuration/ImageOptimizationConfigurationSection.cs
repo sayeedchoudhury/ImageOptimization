@@ -20,16 +20,11 @@ namespace Geta.ImageOptimization.Configuration
         }
 
         [ConfigurationProperty("settings", IsRequired = true)]
-        public ImageOptimizationSettings Settings
-        {
-            get { return (ImageOptimizationSettings)base["settings"]; }
-        }
+        public ImageOptimizationSettings Settings => (ImageOptimizationSettings)base["settings"];
 
         protected static ImageOptimizationConfigurationSection GetSection()
         {
-            var section = WebConfigurationManager.GetSection("geta.imageoptimization") as ImageOptimizationConfigurationSection;
-
-            if (section == null)
+            if (!(WebConfigurationManager.GetSection("geta.imageoptimization") is ImageOptimizationConfigurationSection section))
             {
                 throw new ConfigurationErrorsException("The <geta.imageoptimization> configuration section could not be found in web.config.");
             }

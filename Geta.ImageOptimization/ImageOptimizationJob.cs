@@ -1,14 +1,15 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using EPiServer;
-using EPiServer.BaseLibrary.Scheduling;
 using EPiServer.Core;
 using EPiServer.Data;
 using EPiServer.DataAccess;
 using EPiServer.Framework.Blobs;
 using EPiServer.Logging;
 using EPiServer.PlugIn;
+using EPiServer.Scheduler;
 using EPiServer.Security;
 using EPiServer.ServiceLocation;
 using EPiServer.Web;
@@ -21,12 +22,12 @@ using Geta.ImageOptimization.Models;
 namespace Geta.ImageOptimization
 {
     [ScheduledPlugIn(DisplayName = "Geta Image Optimization")]
-    public class ImageOptimizationJob : JobBase
+    public class ImageOptimizationJob : ScheduledJobBase
     {
         private bool _stop;
         private readonly IImageOptimization _imageOptimization;
         private readonly IImageLogRepository _imageLogRepository;
-        private readonly ILogger _logger = LogManager.GetLogger(typeof (ImageOptimizationJob));
+        private readonly ILogger _logger = LogManager.GetLogger(typeof(ImageOptimizationJob));
 
         public ImageOptimizationJob() : this(ServiceLocator.Current.GetInstance<IImageOptimization>(), ServiceLocator.Current.GetInstance<IImageLogRepository>())
         {
@@ -48,11 +49,11 @@ namespace Geta.ImageOptimization
             var contentRepository = ServiceLocator.Current.GetInstance<IContentRepository>();
             var blobFactory = ServiceLocator.Current.GetInstance<BlobFactory>();
 
-			IEnumerable<ImageData> allImages = GetFolders(contentRepository).SelectMany(a => GetImageFiles(a)).Distinct();
+            IEnumerable<ImageData> allImages = GetFolders(contentRepository).SelectMany(GetImageFiles).Distinct();
 
             if (_stop)
             {
-                return string.Format("Job stopped after optimizing {0} images.", count);
+                return $"Job stopped after optimizing {count} images.";
             }
 
             if (!ImageOptimizationSettings.Instance.BypassPreviouslyOptimized)
@@ -64,7 +65,8 @@ namespace Geta.ImageOptimization
             {
                 if (_stop)
                 {
-                    return string.Format("Job completed after optimizing: {0} images. Before: {1} KB, after: {2} KB.", count, totalBytesBefore / 1024, totalBytesAfter / 1024);
+                    return
+                        $"Job completed after optimizing: {count} images. Before: {totalBytesBefore / 1024} KB, after: {totalBytesAfter / 1024} KB.";
                 }
 
                 if (!PublishedStateAssessor.IsPublished(image) || image.IsDeleted)
@@ -73,12 +75,12 @@ namespace Geta.ImageOptimization
                 }
 
                 var imageOptimizationRequest = new ImageOptimizationRequest
-                                                   {
-                                                       ImageUrl = image.ContentLink.GetFriendlyUrl()
-                                                   };
+                {
+                    ImageUrl = image.ContentLink.GetFriendlyUrl()
+                };
+
                 ImageOptimizationResponse imageOptimizationResponse = this._imageOptimization.ProcessImage(imageOptimizationRequest);
-
-
+                
                 Identity logEntryId = this.AddLogEntry(imageOptimizationResponse, image);
 
                 if (imageOptimizationResponse.Successful)
@@ -94,21 +96,22 @@ namespace Geta.ImageOptimization
                         totalBytesAfter += imageOptimizationResponse.OriginalImageSize;
                     }
 
-                    var file = image.CreateWritableClone() as ImageData;
+                    if (image.CreateWritableClone() is ImageData file)
+                    {
+                        byte[] fileContent = imageOptimizationResponse.OptimizedImage;
 
-                    byte[] fileContent = imageOptimizationResponse.OptimizedImage;
+                        var blob = blobFactory.CreateBlob(file.BinaryDataContainer, MimeTypeHelper.GetDefaultExtension(file.MimeType));
 
-                    var blob = blobFactory.CreateBlob(file.BinaryDataContainer, MimeTypeHelper.GetDefaultExtension(file.MimeType));
+                        blob.Write(new MemoryStream(fileContent));
 
-                    blob.Write(new MemoryStream(fileContent));
+                        file.BinaryData = blob;
 
-                    file.BinaryData = blob;
+                        contentRepository.Save(file, SaveAction.Publish, AccessLevel.NoAccess);
 
-                    contentRepository.Save(file, SaveAction.Publish, AccessLevel.NoAccess);
+                        this.UpdateLogEntryToOptimized(logEntryId);
 
-                    this.UpdateLogEntryToOptimized(logEntryId);
-
-                    count++;
+                        count++;
+                    }
                 }
                 else
                 {
@@ -116,20 +119,23 @@ namespace Geta.ImageOptimization
                 }
             }
 
-            return string.Format("Job completed after optimizing: {0} images. Before: {1} KB, after: {2} KB.", count, totalBytesBefore / 1024, totalBytesAfter / 1024);
+            return
+                $"Job completed after optimizing: {count} images. Before: {totalBytesBefore / 1024} KB, after: {totalBytesAfter / 1024} KB.";
         }
 
-		private static List<ContentFolder> GetFolders(IContentRepository contentRepository)
-		{
-			var folders = new List<ContentFolder>();
-			folders.Add(contentRepository.Get<ContentFolder>(SiteDefinition.Current.GlobalAssetsRoot));
+        private static List<ContentFolder> GetFolders(IContentRepository contentRepository)
+        {
+            var folders = new List<ContentFolder>
+            {
+                contentRepository.Get<ContentFolder>(SiteDefinition.Current.GlobalAssetsRoot)
+            };
 
-			if (ImageOptimizationSettings.Instance.IncludeContentAssets)
-			{
-				folders.Add(contentRepository.Get<ContentFolder>(SiteDefinition.Current.ContentAssetsRoot));
-			}
-			return folders;
-		}
+            if (ImageOptimizationSettings.Instance.IncludeContentAssets)
+            {
+                folders.Add(contentRepository.Get<ContentFolder>(SiteDefinition.Current.ContentAssetsRoot));
+            }
+            return folders;
+        }
 
         private IEnumerable<ImageData> FilterPreviouslyOptimizedImages(IEnumerable<ImageData> allImages)
         {
@@ -152,16 +158,18 @@ namespace Geta.ImageOptimization
                         queue.Enqueue(subDir);
                     }
                 }
-                catch
+                catch (Exception e)
                 {
+                    _logger.Error(e.Message);
                 }
                 IEnumerable<ImageData> files = null;
                 try
                 {
                     files = contentLoader.GetChildren<ImageData>(contentFolder.ContentLink);
                 }
-                catch
+                catch (Exception e)
                 {
+                    _logger.Error(e.Message);
                 }
                 if (files != null)
                 {

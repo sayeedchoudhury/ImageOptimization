@@ -24,8 +24,15 @@ namespace Geta.ImageOptimization.Configuration
         [ConfigurationProperty("siteUrl")]
         public string SiteUrl
         {
-            get { return base["siteUrl"] as string; }
-            set { base["siteUrl"] = value; }
+            get => base["siteUrl"] as string;
+            set => base["siteUrl"] = value;
+        }
+        
+        [ConfigurationProperty("imageOptimizationApi")]
+        public string ImageOptimizationApi
+        {
+            get => base["imageOptimizationApi"] as string;
+            set => base["imageOptimizationApi"] = value;
         }
 
         [ConfigurationProperty("bypassPreviouslyOptimized")]
@@ -38,24 +45,24 @@ namespace Geta.ImageOptimization.Configuration
                     return false;
                 }
 
-                return (bool) base["bypassPreviouslyOptimized"];
+                return (bool)base["bypassPreviouslyOptimized"];
             }
-            set { base["bypassPreviouslyOptimized"] = value; }
+            set => base["bypassPreviouslyOptimized"] = value;
         }
 
-		[ConfigurationProperty("includeContentAssets")]
-		public bool IncludeContentAssets
-		{
-			get
-			{
-				if (base["includeContentAssets"] == null)
-				{
-					return false;
-				}
+        [ConfigurationProperty("includeContentAssets")]
+        public bool IncludeContentAssets
+        {
+            get
+            {
+                if (base["includeContentAssets"] == null)
+                {
+                    return false;
+                }
 
-				return (bool)base["includeContentAssets"];
-			}
-			set { base["includeContentAssets"] = value; }
-		}
+                return (bool)base["includeContentAssets"];
+            }
+            set => base["includeContentAssets"] = value;
+        }
     }
 }
